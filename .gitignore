@@ -1,14 +1,12 @@
 # C development
-c/http_client
-
+ncP
+ncTh
 *.o
 *.ko
 *.obj
 *.elf
 *.lib
 *.a
-proxyFilter
-cache/
 
 *.out
 *.dll

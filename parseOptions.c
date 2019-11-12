@@ -34,15 +34,15 @@ int parseOptions(int argc, char * argv[], struct commandOptions * co) {
     fprintf(stderr, "Arg %d is: %s\n", i, argv[i]);
 
     // Check for the various options
-    if ((strcmp(argv[i], K_OPTION) == 0) & (!lastTwo)) {
+    if ((strcmp(argv[i], K_OPTION) == 0) && (!lastTwo)) {
       co->option_k = 1;
-    } else if ((strcmp(argv[i], L_OPTION) == 0) & (!lastTwo)) {
+    } else if ((strcmp(argv[i], L_OPTION) == 0) && (!lastTwo)) {
       co->option_l = 1;
-    } else if ((strcmp(argv[i], V_OPTION) ==0 )& (!lastTwo)) {
+    } else if ((strcmp(argv[i], V_OPTION) ==0 ) && (!lastTwo)) {
       co->option_v = 1;
-    } else if ((strcmp(argv[i], R_OPTION) == 0 ) & (!lastTwo)){
+    } else if ((strcmp(argv[i], R_OPTION) == 0 ) && (!lastTwo)){
       co->option_r = 1;
-    } else if ((strcmp(argv[i], P_OPTION) == 0) & (!lastTwo)) {
+    } else if ((strcmp(argv[i], P_OPTION) == 0) && (!lastTwo)) {
       // got a port match, check next argument for port number
       i++;
       if (i >= argc) {
@@ -59,7 +59,7 @@ int parseOptions(int argc, char * argv[], struct commandOptions * co) {
 	  co->option_p = 1;
 	}
       }
-    } else if ((strcmp(argv[i], W_OPTION) == 0) & (!lastTwo)) {
+    } else if ((strcmp(argv[i], W_OPTION) == 0) && (!lastTwo)) {
       // got a W match, check next argument for timeout value
       i++;
       if (i >= argc) {
@@ -90,5 +90,11 @@ int parseOptions(int argc, char * argv[], struct commandOptions * co) {
       return PARSE_TOOMANY_ARGS;
     }
   }
+
+  // At this point all the command line arguments have been parsed but they
+  // haven't been checked for validity. It might make sense to check things
+  // like port numbers to verify that they are in the valid range before
+  // returning success and that the options don't contradict each other
+  // It is up to you to decide how you want to proceed.
   return PARSE_OK;
 }
