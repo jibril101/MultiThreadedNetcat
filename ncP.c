@@ -8,11 +8,14 @@
 #include <stddef.h>
 #include <stdio.h>
 
+void printOptions(int argc, char **argv);
+
 int main(int argc, char **argv) {
   
-  // This is some sample code feel free to delete it
-  // This is the main program for the thread version of nc
   
+}
+
+void printOptions(int argc, char **argv) {
   struct commandOptions cmdOps;
   int retVal = parseOptions(argc, argv, &cmdOps);
   printf("Command parse outcome %d\n", retVal);
