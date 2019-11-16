@@ -8,15 +8,19 @@
 #include <stddef.h>
 #include <stdio.h>
 
-void printOptions(int argc, char **argv);
+// function declarations
+void printOptions(struct commandOptions cmdOps, int argc, char **argv);
 
 int main(int argc, char **argv) {
+	struct commandOptions cmdOps;
+
+	printOptions(cmdOps, argc, argv);
   
   
 }
 
-void printOptions(int argc, char **argv) {
-  struct commandOptions cmdOps;
+void printOptions(struct commandOptions cmdOps, int argc, char **argv) {
+
   int retVal = parseOptions(argc, argv, &cmdOps);
   printf("Command parse outcome %d\n", retVal);
 
@@ -30,3 +34,4 @@ void printOptions(int argc, char **argv) {
   printf("Host to connect to = %s\n", cmdOps.hostname);
   printf("Port to connect to = %d\n", cmdOps.port);  
 }
+
