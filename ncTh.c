@@ -15,15 +15,13 @@
 #include <errno.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <fcntl.h>
 
 
 #define BACKLOG 10 // queue of pending connections
 
 // function declarations
 void printOptions(struct commandOptions cmdOps, int argc, char **argv);
-
-
-
 
 typedef enum {false, true} bool;
 
@@ -33,8 +31,13 @@ struct client_fds {
   int fd;
 };
 
+char client_message[2000];
+char buffer[1024];
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+
 void *socketThread(void *arg) {
   int newSocket = *((int *)arg);
+  recv(newSocket, client_message, 2000, 0);
 }
 
 int main(int argc, char **argv) {
