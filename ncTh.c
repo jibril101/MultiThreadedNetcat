@@ -16,9 +16,11 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <fcntl.h>
+#include "Thread.h"
 
+#define BUFSIZE 4096
 
-#define BACKLOG 10 // queue of pending connections
+//#define BACKLOG 1 // queue of pending connections
 
 // function declarations
 void printOptions(struct commandOptions cmdOps, int argc, char **argv);
@@ -26,35 +28,40 @@ void printOptions(struct commandOptions cmdOps, int argc, char **argv);
 typedef enum {false, true} bool;
 
 // struct to keep track of client's file descriptors
-struct client_fds {
-  bool in_use;
+typedef struct client_fd {
   int fd;
-};
+  bool in_use;
+} Client; 
 
-void sigchld_handler(int s)
-{
-    // waitpid() might overwrite errno, so we save and restore it:
-    int saved_errno = errno;
+Client clients[11];
 
-    while(waitpid(-1, NULL, WNOHANG) > 0);
-
-    errno = saved_errno;
-}
-
-
-// get sockaddr, IPv4 or IPv6:
+// get sockaddr, IPv4 
 void *get_in_addr(struct sockaddr *sa)
 {
-    if (sa->sa_family == AF_INET) {
-        return &(((struct sockaddr_in*)sa)->sin_addr);
-    }
-
-    return &(((struct sockaddr_in6*)sa)->sin6_addr);
+return &(((struct sockaddr_in*)sa)->sin_addr);
 }
 
+void *handle_connection(void* arg) {
+    int count = 0;
+    printf("running client thread\n");
+    char buffer[BUFSIZE];
+    int fd = *((int *)arg);
+    while(true && count < 100) {
+        count++;
+        printf("waiting for request from client\n");
+        if(recv(fd, buffer, BUFSIZE, 0) == -1 ) {
+             perror("client: recv");
+        }
+        printf("CLIENT REQUEST: %s\n", buffer);
+    }
+    close(fd);
+}
 int main(int argc, char *argv[])
 {
-    int sockfd, new_fd;  // listen on sock_fd, new connection on new_fd
+
+    //Client *clients = malloc(12*sizeof(Client));
+
+    int sockfd, new_socket;  // listen on sock_fd, new connection on new_socket
     struct addrinfo hints, *servinfo, *p;
     struct sockaddr_storage their_addr; // connector's address information
     socklen_t sin_size;
@@ -109,50 +116,42 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    if (listen(sockfd, BACKLOG) == -1) {
+    if (listen(sockfd, 10) == -1) {
         perror("listen");
         exit(1);
     }
-
-    sa.sa_handler = sigchld_handler; // reap all dead processes
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART;
-    if (sigaction(SIGCHLD, &sa, NULL) == -1) {
-        perror("sigaction");
-        exit(1);
-    }
-
     printf("server: waiting for connections...\n");
 
+    int index = 0;
     while(1) {  // main accept() loop
         sin_size = sizeof their_addr;
-        new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
-        if (new_fd == -1) {
-            perror("accept");
+        new_socket = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
+        if (new_socket == -1) {
+            perror("accept failed");
             continue;
         }
+         //for threading, put it into the list of active fds
+        Client client = {new_socket, true};
+        while(index < 12) {
+            clients[index] = client;
+            index++;
+        }
+        // do whatever needs to be done with the connection
+        //handle_connection(new_socket);
 
-        inet_ntop(their_addr.ss_family,
-            get_in_addr((struct sockaddr *)&their_addr),
-            s, sizeof s);
+        inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr), s, sizeof s);
         printf("server: got connection from %s\n", s);
 
-        if (!fork()) { // this is the child process
-            close(sockfd); // child doesn't need the listener
+        void* thread = createThread(handle_connection, &new_socket);
+        printf("created thread\n");
+        runThread(thread, NULL);
+        printf("after run thread\n");
 
-            while(1){            
-                char str[100];
-                printf(">> ");
-  		fgets(str, 100, stdin);
-		str[strlen(str)-1] = '\0';
-                if (send(new_fd, str, 13, 0) == -1){
-                   perror("send");
-                }
-	    }
-            close(new_fd);
-            exit(0);
-        }
-        close(new_fd);  // parent doesn't need this
+
+        //close connection
+        close(new_socket);
+        //exit server
+        exit(0);
     }
 
   return 0;
