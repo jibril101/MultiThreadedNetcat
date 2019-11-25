@@ -46,7 +46,7 @@ void *handle_connection(void* arg) {
     printf("running client thread\n");
     char buffer[BUFSIZE];
     int fd = *((int *)arg);
-    while(true && count < 100) {
+    while(true) {
         count++;
         printf("waiting for request from client\n");
         if(recv(fd, buffer, BUFSIZE, 0) == -1 ) {
@@ -56,6 +56,16 @@ void *handle_connection(void* arg) {
     }
     close(fd);
 }
+
+void* handle_std_in(void* arg) {
+    while(1){            
+        char buffer[BUFSIZE];
+        printf(">> ");
+  		fgets(buffer, 100, stdin);
+		buffer[strlen(buffer)-1] = '\0';
+	}
+}
+
 int main(int argc, char *argv[])
 {
 
@@ -145,14 +155,15 @@ int main(int argc, char *argv[])
         void* thread = createThread(handle_connection, &new_socket);
         printf("created thread\n");
         runThread(thread, NULL);
-        printf("after run thread\n");
 
-
-        //close connection
-        close(new_socket);
-        //exit server
-        exit(0);
+        // create new thread for standard input
+        void* std_in_thread = createThread(handle_std_in,NULL);
+        runThread(std_in_thread, NULL);
     }
+    //close connection
+    close(new_socket);
+    //exit server
+    exit(0);
 
   return 0;
 }

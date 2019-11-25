@@ -42,5 +42,5 @@ clean:
 	rm -f *.o
 	rm -f ncP ncTh
 
-buildrun:all
+run:all
 	./ncTh 9000
