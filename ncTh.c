@@ -42,25 +42,27 @@ return &(((struct sockaddr_in*)sa)->sin_addr);
 }
 
 void *handle_connection(void* arg) {
-    int count = 0;
-    printf("running client thread\n");
     char buffer[BUFSIZE];
     int fd = *((int *)arg);
     while(true) {
-        count++;
-        printf("waiting for request from client\n");
-        if(recv(fd, buffer, BUFSIZE, 0) == -1 ) {
+        int rv = recv(fd, buffer, BUFSIZE, 0);
+        if(rv == -1 ) {
              perror("client: recv");
         }
-        printf("CLIENT REQUEST: %s\n", buffer);
+        if (rv == 0) {
+            printf("client connection closed");
+            break;
+        }
+
+        fprintf(stdout, buffer);
+        fflush(stdout);
     }
-    close(fd);
 }
 
 void* handle_std_in(void* arg) {
     while(1){            
         char buffer[BUFSIZE];
-        printf(">> ");
+        //printf(">> ");
   		fgets(buffer, 100, stdin);
 		buffer[strlen(buffer)-1] = '\0';
 	}
@@ -132,7 +134,7 @@ int main(int argc, char *argv[])
     }
     printf("server: waiting for connections...\n");
 
-    int index = 0;
+    int index = -1;
     while(1) {  // main accept() loop
         sin_size = sizeof their_addr;
         new_socket = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
@@ -142,10 +144,13 @@ int main(int argc, char *argv[])
         }
          //for threading, put it into the list of active fds
         Client client = {new_socket, true};
-        while(index < 12) {
+        if (index < 12) { 
             clients[index] = client;
             index++;
         }
+            
+        printf("index %d\n", index);
+        printf("client socket # %s\n", clients[index].fd);
         // do whatever needs to be done with the connection
         //handle_connection(new_socket);
 
@@ -153,7 +158,7 @@ int main(int argc, char *argv[])
         printf("server: got connection from %s\n", s);
 
         void* thread = createThread(handle_connection, &new_socket);
-        printf("created thread\n");
+        printf("created thread: %lu\n", getThreadID(thread));
         runThread(thread, NULL);
 
         // create new thread for standard input
