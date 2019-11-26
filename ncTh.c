@@ -19,6 +19,7 @@
 #include "Thread.h"
 
 #define BUFSIZE 4096
+#define MAXCLIENT 10
 
 //#define BACKLOG 1 // queue of pending connections
 
@@ -28,12 +29,14 @@ void printOptions(struct commandOptions cmdOps, int argc, char **argv);
 typedef enum {false, true} bool;
 
 // struct to keep track of client's file descriptors
-typedef struct client_fd {
+/*typedef struct client_fd {
   int fd;
   bool in_use;
 } Client; 
 
-Client clients[11];
+Client clients[11]; */
+
+int clients[MAXCLIENT];
 
 // get sockaddr, IPv4 
 void *get_in_addr(struct sockaddr *sa)
@@ -47,15 +50,26 @@ void *handle_connection(void* arg) {
     while(true) {
         int rv = recv(fd, buffer, BUFSIZE, 0);
         if(rv == -1 ) {
-             perror("client: recv");
+             perror("client: recv failed");
         }
         if (rv == 0) {
             printf("client connection closed");
+            close(fd);
+            free(arg);
             break;
         }
 
         fprintf(stdout, buffer);
-        fflush(stdout);
+
+        for(int i = 0 ; i < MAXCLIENT;i++) {
+            int socket = clients[i];
+            if (socket != fd && socket !=0) {
+               int rv =  send(socket, buffer, BUFSIZE,0);
+               if(rv == -1){
+                   perror("client: send failed");
+               }
+            }
+        }
     }
 }
 
@@ -66,6 +80,9 @@ void* handle_std_in(void* arg) {
   		fgets(buffer, 100, stdin);
 		buffer[strlen(buffer)-1] = '\0';
 	}
+}
+void* test(void* arg){
+    printf("hello world");
 }
 
 int main(int argc, char *argv[])
@@ -81,7 +98,7 @@ int main(int argc, char *argv[])
     int yes=1;
     char s[INET6_ADDRSTRLEN];
     int rv;
-
+    
     // Check that port is provided as an argument
     if (argc != 2){
         fprintf(stderr, "usage server portnumber\n");
@@ -134,36 +151,45 @@ int main(int argc, char *argv[])
     }
     printf("server: waiting for connections...\n");
 
-    int index = -1;
+    int index = 0; 
     while(1) {  // main accept() loop
         sin_size = sizeof their_addr;
+        
         new_socket = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
         if (new_socket == -1) {
             perror("accept failed");
             continue;
         }
-         //for threading, put it into the list of active fds
-        Client client = {new_socket, true};
+        pthread_t pool[MAXCLIENT];
+        for(int i =0; i < MAXCLIENT; i++ ){
+            int t = 0;
+            void* thread = createThread(test,&t);
+            printf("created thread: %lu\n", getThreadID(thread));
+        }
+
+        //Client client = {new_socket, true};
         if (index < 12) { 
-            clients[index] = client;
+            clients[index] = new_socket;
             index++;
         }
-            
-        printf("index %d\n", index);
-        printf("client socket # %s\n", clients[index].fd);
-        // do whatever needs to be done with the connection
-        //handle_connection(new_socket);
+        int size = sizeof(clients)/sizeof(clients[0]);
+        printf("size of clients array %d\n",size);
 
         inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr), s, sizeof s);
         printf("server: got connection from %s\n", s);
 
-        void* thread = createThread(handle_connection, &new_socket);
+        int *client_socket = malloc(sizeof(int));
+        *client_socket = new_socket;
+        void* thread = createThread(handle_connection, client_socket);
         printf("created thread: %lu\n", getThreadID(thread));
         runThread(thread, NULL);
-
+        
         // create new thread for standard input
         void* std_in_thread = createThread(handle_std_in,NULL);
         runThread(std_in_thread, NULL);
+
+        cancelThread(std_in_thread);
+
     }
     //close connection
     close(new_socket);
