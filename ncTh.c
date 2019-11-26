@@ -65,7 +65,7 @@ void *handle_connection(void* arg) {
             int socket = clients[i];
             if (socket != fd && socket !=0) {
                int rv =  send(socket, buffer, BUFSIZE,0);
-               if(rv == -1){
+               if(rv == -1) {
                    perror("client: send failed");
                }
             }
@@ -77,13 +77,27 @@ void* handle_std_in(void* arg) {
     while(1){            
         char buffer[BUFSIZE];
         //printf(">> ");
-  		fgets(buffer, 100, stdin);
+        printf("before std in");
+  		fgets(buffer, BUFSIZE, stdin);
+   
 		buffer[strlen(buffer)-1] = '\0';
+        printf("here");
+        for(int i = 0 ; i < MAXCLIENT; i++) {
+            int socket = clients[i];
+            printf("%d\n",socket);
+            if(socket!=0) {
+        
+            int rv =  send(socket, buffer, BUFSIZE,0);
+            if(rv == -1) {
+                perror("client: send failed");
+                }
+            }
+        }
 	}
 }
-void* test(void* arg){
+/*void* test(void* arg){
     printf("hello world");
-}
+}*/
 
 int main(int argc, char *argv[])
 {
@@ -160,12 +174,12 @@ int main(int argc, char *argv[])
             perror("accept failed");
             continue;
         }
-        pthread_t pool[MAXCLIENT];
+        /*pthread_t pool[MAXCLIENT];
         for(int i =0; i < MAXCLIENT; i++ ){
             int t = 0;
             void* thread = createThread(test,&t);
             printf("created thread: %lu\n", getThreadID(thread));
-        }
+        }*/
 
         //Client client = {new_socket, true};
         if (index < 12) { 
