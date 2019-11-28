@@ -109,25 +109,28 @@ int main(int argc, char *argv[])
     for(int i =0; i < MAXCLIENT; i++ ){
         clients[i] = -1;
     }
-    int index = 0; 
+
+    // create new thread for standard input
+    int *std_in = malloc(sizeof(int));
+    *std_in = 0;
+    void* std_in_thread = createThread(handle_connection, std_in);
+    runThread(std_in_thread, NULL);
+
     while(1) {  // main accept() loop
         int limit_reached = 1;
         int idx = 0;
         for(int i =0; i < MAXCLIENT; i++) { 
-            //log_num(clients[i]);
+
             if (clients[i] == -1) {
                 limit_reached = 0;
                 idx = i;
                 break;
             }
         }
-        //log_num(limit_reached);
-        //log_num(idx);
 
         if (!limit_reached) {
             sin_size = sizeof their_addr;
             new_socket = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
-            log_num(new_socket);
             clients[idx] = new_socket;
             inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr), s, sizeof s);
             printf("server: got connection from %s\n", s);
@@ -141,18 +144,7 @@ int main(int argc, char *argv[])
                 perror("accept failed");
                 continue;
             }
-
         }
-        /*if (index < 12) { 
-            clients[index] = new_socket;
-            index++;
-        }*/
-        
-        // create new thread for standard input
-        int *std_in = malloc(sizeof(int));
-        *std_in = 0;
-        void* std_in_thread = createThread(handle_connection, std_in);
-        runThread(std_in_thread, NULL);
     }
     //close connection
     close(new_socket);
@@ -179,7 +171,7 @@ void *handle_connection(void* arg) {
              perror("client: recv failed");
         }
         if (rv == 0) {
-            printf("client connection closed");
+            printf("client connection closed\n");
             release_socket(fd);
             close(fd);
             free(arg);
@@ -191,7 +183,6 @@ void *handle_connection(void* arg) {
         }
         for(int i = 0 ; i < MAXCLIENT;i++) {
             int socket = clients[i];
-            log_num(socket);
             if (socket != fd && socket !=-1) {
                int rv =  send(socket, buffer, BUFSIZE,0);
                //bzero(buffer, BUFSIZE*sizeof(char));
@@ -208,7 +199,7 @@ void *handle_connection(void* arg) {
 void release_socket(int fd) {
     for(int i = 0; i < MAXCLIENT; i++) {
         if(clients[i] == fd) {
-            printf("releasing socket");
+            printf("releasing socket %d\n", fd);
             clients[i] = -1;
             break;
         }
