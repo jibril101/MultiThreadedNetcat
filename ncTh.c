@@ -25,88 +25,26 @@
 
 // function declarations
 void printOptions(struct commandOptions cmdOps, int argc, char **argv);
+void *handle_connection(void* arg);
+void release_socket(int fd);
+void *get_in_addr(struct sockaddr *sa);
+void log_num(int thing);
 
-typedef enum {false, true} bool;
-
+//typedef enum {false, true} bool;
 // struct to keep track of client's file descriptors
 /*typedef struct client_fd {
   int fd;
   bool in_use;
 } Client; 
-
 Client clients[11]; */
 
 int clients[MAXCLIENT];
 
-// get sockaddr, IPv4 
-void *get_in_addr(struct sockaddr *sa)
-{
-return &(((struct sockaddr_in*)sa)->sin_addr);
-}
-
-void *handle_connection(void* arg) {
-    char buffer[BUFSIZE];
-    int fd = *((int *)arg);
-    while(true) {
-        int rv = 0;
-        if (fd == 0) {
-            rv = read(fd, buffer, BUFSIZE);
-        } else {
-            rv = recv(fd, buffer, BUFSIZE, 0);
-        }
-        if(rv == -1 ) {
-             perror("client: recv failed");
-        }
-        if (rv == 0) {
-            printf("client connection closed");
-            close(fd);
-            free(arg);
-            break;
-        }
-
-        if (fd != 0) {
-            fprintf(stdout, buffer);
-        }
-        for(int i = 0 ; i < MAXCLIENT;i++) {
-            int socket = clients[i];
-            if (socket != fd && socket !=0) {
-               int rv =  send(socket, buffer, BUFSIZE,0);
-               bzero(buffer, BUFSIZE*sizeof(char));
-               if(rv == -1) {
-                   clients[i] = 0;
-                   perror("client: send failed");
-               }
-            }
-        }
-    }
-}
-
-void* handle_std_in(void* arg) {
-    while(1){            
-        char buffer[BUFSIZE];
-  		fgets(buffer, BUFSIZE, stdin);
-   
-		buffer[strlen(buffer)-1] = '\0';
-        for(int i = 0 ; i < MAXCLIENT; i++) {
-            if(socket!=0) {
-            int rv =  send(socket, buffer, BUFSIZE,0);
-            bzero(buffer, BUFSIZE*sizeof(char));
-            if(rv == -1) {
-                perror("client: send failed");
-                }
-            }
-        }
-	}
-}
-/*void* test(void* arg){
-    printf("hello world");
-}*/
-
 int main(int argc, char *argv[])
 {
-
-    //Client *clients = malloc(12*sizeof(Client));
-
+    //check command line options
+    struct commandOptions cmdOps;
+    printOptions(cmdOps, argc, argv);
     int sockfd, new_socket;  // listen on sock_fd, new connection on new_socket
     struct addrinfo hints, *servinfo, *p;
     struct sockaddr_storage their_addr; // connector's address information
@@ -176,21 +114,20 @@ int main(int argc, char *argv[])
             perror("accept failed");
             continue;
         }
-        /*pthread_t pool[MAXCLIENT];
+        //set all sockets to -1 
         for(int i =0; i < MAXCLIENT; i++ ){
-            int t = 0;
-            void* thread = createThread(test,&t);
-            printf("created thread: %lu\n", getThreadID(thread));
-        }*/
+          clients[i] = -1;
+        }
+        for(int i =0; i < MAXCLIENT; i++ ){
+          if(clients[i] = -1) {
 
-        //Client client = {new_socket, true};
+          }
+        }
         if (index < 12) { 
             clients[index] = new_socket;
             index++;
         }
-        int size = sizeof(clients)/sizeof(clients[0]);
-        printf("size of clients array %d\n",size);
-
+        
         inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr), s, sizeof s);
         printf("server: got connection from %s\n", s);
 
@@ -211,6 +148,69 @@ int main(int argc, char *argv[])
     exit(0);
 
   return 0;
+}
+
+// handle the client and stand input connection
+void *handle_connection(void* arg) {
+    char buffer[BUFSIZE];
+    int fd = *((int *)arg);
+    while(1) {
+        int rv = 0;
+        if (fd == 0) {
+            rv = read(fd, buffer, BUFSIZE);
+            buffer[rv] = '\0';
+        } else {
+            rv = recv(fd, buffer, BUFSIZE, 0);
+            buffer[rv] = '\0';
+        }
+        if(rv == -1 ) {
+             perror("client: recv failed");
+        }
+        if (rv == 0) {
+            printf("client connection closed");
+            release_socket(fd);
+            close(fd);
+            free(arg);
+            break;
+        }
+
+        if (fd != 0) {
+            fprintf(stdout, buffer);
+        }
+        for(int i = 0 ; i < MAXCLIENT;i++) {
+            int socket = clients[i];
+            log_num(socket);
+            if (socket != fd && socket !=-1) {
+               int rv =  send(socket, buffer, BUFSIZE,0);
+               bzero(buffer, BUFSIZE*sizeof(char));
+               if(rv == -1) {
+                   clients[i] = -1;
+                   perror("client: send failed");
+               }
+            }
+        }
+    }
+}
+
+// when socket connection is closed, set its value to -1 in clients array 
+void release_socket(int fd) {
+    for(int i = 0; i < MAXCLIENT; i++) {
+        if(clients[i] == fd) {
+            printf("releasing socket");
+            clients[i] = -1;
+            break;
+        }
+    }
+}
+
+// get sockaddr, IPv4 
+void *get_in_addr(struct sockaddr *sa)
+{
+return &(((struct sockaddr_in*)sa)->sin_addr);
+}
+
+void log_num(int thing) {
+    printf("%d\n",thing);
 }
 
 void printOptions(struct commandOptions cmdOps, int argc, char **argv) {
