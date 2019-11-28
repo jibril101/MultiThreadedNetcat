@@ -194,7 +194,7 @@ void *handle_connection(void* arg) {
             log_num(socket);
             if (socket != fd && socket !=-1) {
                int rv =  send(socket, buffer, BUFSIZE,0);
-               bzero(buffer, BUFSIZE*sizeof(char));
+               //bzero(buffer, BUFSIZE*sizeof(char));
                if(rv == -1) {
                    clients[i] = -1;
                    perror("client: send failed");
