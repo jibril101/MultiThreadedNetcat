@@ -105,36 +105,48 @@ int main(int argc, char *argv[])
         exit(1);
     }
     printf("server: waiting for connections...\n");
-
+     //set all sockets to -1 
+    for(int i =0; i < MAXCLIENT; i++ ){
+        clients[i] = -1;
+    }
     int index = 0; 
     while(1) {  // main accept() loop
-        sin_size = sizeof their_addr;
-        new_socket = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
-        if (new_socket == -1) {
-            perror("accept failed");
-            continue;
+        int limit_reached = 1;
+        int idx = 0;
+        for(int i =0; i < MAXCLIENT; i++) { 
+            //log_num(clients[i]);
+            if (clients[i] == -1) {
+                limit_reached = 0;
+                idx = i;
+                break;
+            }
         }
-        //set all sockets to -1 
-        for(int i =0; i < MAXCLIENT; i++ ){
-          clients[i] = -1;
-        }
-        for(int i =0; i < MAXCLIENT; i++ ){
-          if(clients[i] = -1) {
+        //log_num(limit_reached);
+        //log_num(idx);
 
-          }
+        if (!limit_reached) {
+            sin_size = sizeof their_addr;
+            new_socket = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
+            log_num(new_socket);
+            clients[idx] = new_socket;
+            inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr), s, sizeof s);
+            printf("server: got connection from %s\n", s);
+
+            int *client_socket = malloc(sizeof(int));
+            *client_socket = new_socket;
+            void* thread = createThread(handle_connection, client_socket);
+            runThread(thread, NULL);
+
+            if (new_socket == -1) {
+                perror("accept failed");
+                continue;
+            }
+
         }
-        if (index < 12) { 
+        /*if (index < 12) { 
             clients[index] = new_socket;
             index++;
-        }
-        
-        inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr), s, sizeof s);
-        printf("server: got connection from %s\n", s);
-
-        int *client_socket = malloc(sizeof(int));
-        *client_socket = new_socket;
-        void* thread = createThread(handle_connection, client_socket);
-        runThread(thread, NULL);
+        }*/
         
         // create new thread for standard input
         int *std_in = malloc(sizeof(int));
