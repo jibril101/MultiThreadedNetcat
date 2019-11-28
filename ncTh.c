@@ -48,7 +48,12 @@ void *handle_connection(void* arg) {
     char buffer[BUFSIZE];
     int fd = *((int *)arg);
     while(true) {
-        int rv = recv(fd, buffer, BUFSIZE, 0);
+        int rv = 0;
+        if (fd == 0) {
+            rv = read(fd, buffer, BUFSIZE);
+        } else {
+            rv = recv(fd, buffer, BUFSIZE, 0);
+        }
         if(rv == -1 ) {
              perror("client: recv failed");
         }
@@ -59,13 +64,16 @@ void *handle_connection(void* arg) {
             break;
         }
 
-        fprintf(stdout, buffer);
-
+        if (fd != 0) {
+            fprintf(stdout, buffer);
+        }
         for(int i = 0 ; i < MAXCLIENT;i++) {
             int socket = clients[i];
             if (socket != fd && socket !=0) {
                int rv =  send(socket, buffer, BUFSIZE,0);
+               bzero(buffer, BUFSIZE*sizeof(char));
                if(rv == -1) {
+                   clients[i] = 0;
                    perror("client: send failed");
                }
             }
@@ -76,18 +84,13 @@ void *handle_connection(void* arg) {
 void* handle_std_in(void* arg) {
     while(1){            
         char buffer[BUFSIZE];
-        //printf(">> ");
-        printf("before std in");
   		fgets(buffer, BUFSIZE, stdin);
    
 		buffer[strlen(buffer)-1] = '\0';
-        printf("here");
         for(int i = 0 ; i < MAXCLIENT; i++) {
-            int socket = clients[i];
-            printf("%d\n",socket);
             if(socket!=0) {
-        
             int rv =  send(socket, buffer, BUFSIZE,0);
+            bzero(buffer, BUFSIZE*sizeof(char));
             if(rv == -1) {
                 perror("client: send failed");
                 }
@@ -168,7 +171,6 @@ int main(int argc, char *argv[])
     int index = 0; 
     while(1) {  // main accept() loop
         sin_size = sizeof their_addr;
-        
         new_socket = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
         if (new_socket == -1) {
             perror("accept failed");
@@ -195,15 +197,13 @@ int main(int argc, char *argv[])
         int *client_socket = malloc(sizeof(int));
         *client_socket = new_socket;
         void* thread = createThread(handle_connection, client_socket);
-        printf("created thread: %lu\n", getThreadID(thread));
         runThread(thread, NULL);
         
         // create new thread for standard input
-        void* std_in_thread = createThread(handle_std_in,NULL);
+        int *std_in = malloc(sizeof(int));
+        *std_in = 0;
+        void* std_in_thread = createThread(handle_connection, std_in);
         runThread(std_in_thread, NULL);
-
-        cancelThread(std_in_thread);
-
     }
     //close connection
     close(new_socket);
