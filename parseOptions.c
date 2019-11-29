@@ -55,7 +55,7 @@ int parseOptions(int argc, char * argv[], struct commandOptions * co) {
 	co->source_port = strtoul(argv[i], NULL, 10);
 	if (errno != 0) {
 	  return PARSE_ERROR;
-	} if (co->source_port > 65535 || co->source_port < 1024) {
+	} else if (co->source_port > 65535 || co->source_port < 1024) {
     return PARSE_PORT_OUT_OF_RANGE; // port number must not be out of range or reserved
   } else {
 	  co->option_p = 1;
