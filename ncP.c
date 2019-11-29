@@ -23,20 +23,25 @@ int get_listener_socket(char *PORT);
 void add_to_pfds(struct pollfd *pfds[], int newfd, int *fd_count, int *fd_size);
 void del_from_pfds(struct pollfd pfds[], int i, int *fd_count);
 void start_server(struct commandOptions cmdOps);
+void *get_in_port(struct sockaddr *sa);
 
 
 // TODO: Polling client: Same as server code but you have 2 fd only, you dont bind or listen, you just connect to server
 // then (second) fd is stdin
+// TODO: Set listeners to pollout?
+// TODO: limit connections to only 10 for polling
 int main(int argc, char **argv) {
 
   	struct commandOptions cmdOps;
 	parseOptions(argc, argv, &cmdOps);
- 	// printOptions(argc, argv, cmdOps);
+ 	printOptions(argc, argv, cmdOps);
 
-	 if (cmdOps.option_l && cmdOps.option_p) {
+	 if (cmdOps.option_l) {
 		 
 		start_server(cmdOps);
 	 }
+
+
     
 
 
@@ -66,6 +71,14 @@ void *get_in_addr(struct sockaddr *sa)
     }
 
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
+}
+
+void *get_in_port(struct sockaddr *sa)
+{
+    if (sa->sa_family == AF_INET) {
+        return &(((struct sockaddr_in*)sa)->sin_port);
+    }
+	return &(((struct sockaddr_in6*)sa)->sin6_port);
 }
 
 // Return a listening socket
@@ -145,8 +158,9 @@ void del_from_pfds(struct pollfd pfds[], int i, int *fd_count)
 }
 
 void start_server(struct commandOptions cmdOps) {
+
 	char PORT[12];	// port we're listening on
-	sprintf(PORT, "%d", cmdOps.source_port);	// convert int to char[]
+	sprintf(PORT, "%d", cmdOps.port);	// convert int to char[]
 	printf("PORT: %s\n", PORT);
 
   	int listener;     // Listening socket descriptor
@@ -187,6 +201,7 @@ void start_server(struct commandOptions cmdOps) {
 
     fd_count = 2;
 
+	fprintf(stderr, "waiting for connection\n");
     // Main loop
     for(;;) {
         int poll_count = poll(pfds, fd_count, -1);
@@ -198,14 +213,17 @@ void start_server(struct commandOptions cmdOps) {
 
         // Run through the existing connections looking for data to read
         for(int i = 0; i < fd_count; i++) {
-
+		
             // Check if someone's ready to read
             if (pfds[i].revents & POLLIN) { // We got one!!
+				
 
                 if (pfds[i].fd == listener) {
                     // If listener is ready to read, handle new connection
 
                     addrlen = sizeof remoteaddr;
+					// TODO: show port number of client, can use the client code (save port as global variable maybe)
+					// int client_port = get_in_port((struct sockaddr*)&remoteaddr);	// get the port from the struct
                     newfd = accept(listener,
                         (struct sockaddr *)&remoteaddr,
                         &addrlen);
@@ -214,20 +232,18 @@ void start_server(struct commandOptions cmdOps) {
                         perror("accept");
                     } else {
                         add_to_pfds(&pfds, newfd, &fd_count, &fd_size);
+						fprintf(stderr, "accepted connection\n");
 
-                        printf("pollserver: new connection from %s on "
-                            "socket %d\n",
-                            inet_ntop(remoteaddr.ss_family,
-                                get_in_addr((struct sockaddr*)&remoteaddr),
-                                remoteIP, INET_ADDRSTRLEN),
-                            newfd);
+                        printf("new connection from %s on "
+                            "port %d\n",
+                            inet_ntop(remoteaddr.ss_family, get_in_addr((struct sockaddr*)&remoteaddr), remoteIP, INET_ADDRSTRLEN), newfd);
                     }
                 } else if (pfds[i].fd == 0) { // stdin
                     // printf("inside stdin send to clients\n");
                     
                     // create new buffer and flush it
                     int sender_fd = pfds[i].fd;
-                    int bytes_read = read(sender_fd, send_buf, sizeof send_buf);
+                    int bytes_read = recv(sender_fd, send_buf, sizeof send_buf, 0);
 					
                     
                     
