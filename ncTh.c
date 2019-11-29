@@ -9,7 +9,6 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
-
 #include <unistd.h>
 #include <errno.h>
 #include <sys/wait.h>
@@ -116,6 +115,8 @@ void del_from_pfds(struct pollfd pfds[], int i, int *fd_count)
 
 
 
+
+
 int main(int argc, char *argv[])
 {
     int listener;     // Listening socket descriptor
@@ -126,6 +127,8 @@ int main(int argc, char *argv[])
 
     char buf[256];    // Buffer for client data
     char send_buf[256]; // Buffer for server data
+
+    int send_len = strlen(send_buf);
 
     char remoteIP[INET6_ADDRSTRLEN];
 
@@ -190,6 +193,7 @@ int main(int argc, char *argv[])
                             newfd);
                     }
                 } else if (pfds[i].fd == 0) { // stdin
+                    // printf("inside stdin send to clients\n");
                     
                     // create new buffer and flush it
                     int sender_fd = pfds[i].fd;
@@ -202,7 +206,8 @@ int main(int argc, char *argv[])
                     for (int i = 0; i < fd_count; i++) {
                         int dest_fd = pfds[i].fd;
 
-                        if (dest_fd != listener && dest_fd != sender_fd) {
+                        // Don't send to sockets that are listener and ourselves
+                        if (dest_fd != listener && dest_fd != sender_fd && dest_fd != 0) {
                             if (send(dest_fd, send_buf, bytes_read, 0) == -1) {
                                     perror("send");
                                 }
@@ -230,15 +235,16 @@ int main(int argc, char *argv[])
 
                     } else {
                         // We got some good data from a client
+                        // printf("inside good data from client\n");
 
                         for(int j = 0; j < fd_count; j++) {
                             // Send to everyone!
                             int dest_fd = pfds[j].fd;
 
-                            // Except the listener and ourselves
-                            if (dest_fd != listener && dest_fd != sender_fd) {
+                            // Don't send to sockets that are listener, ourselves, and stdin
+                            if (dest_fd != listener && dest_fd != sender_fd && dest_fd != 0) {
                                 if (send(dest_fd, buf, nbytes, 0) == -1) {
-                                    perror("send");
+                                    perror("send error:");
                                 }
                             }
                         }
