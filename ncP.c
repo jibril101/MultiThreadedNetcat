@@ -19,7 +19,7 @@
 // function prototypes
 void printOptions(int argc, char **argv, struct commandOptions cmdOps);
 void *get_in_addr(struct sockaddr *sa);
-int get_listener_socket(void);
+int get_listener_socket(char *PORT);
 void add_to_pfds(struct pollfd *pfds[], int newfd, int *fd_count, int *fd_size);
 void del_from_pfds(struct pollfd pfds[], int i, int *fd_count);
 
@@ -27,11 +27,13 @@ void del_from_pfds(struct pollfd pfds[], int i, int *fd_count);
 int main(int argc, char **argv) {
 
   	struct commandOptions cmdOps;
+	parseOptions(argc, argv, &cmdOps);
+ 	// printOptions(argc, argv, cmdOps);
 
- 	printOptions(argc, argv, cmdOps);
 
 	char PORT[12];	// port we're listening on
-	sprintf(PORT, "%d", cmdOps.source_port);	// convert int to char[] 
+	sprintf(PORT, "%d", cmdOps.source_port);	// convert int to char[]
+	printf("PORT: %s\n", PORT);
 
   	int listener;     // Listening socket descriptor
 
@@ -51,7 +53,7 @@ int main(int argc, char **argv) {
     struct pollfd *pfds = malloc(sizeof *pfds * fd_size);
 
     // Set up and get a listening socket
-    listener = get_listener_socket();
+    listener = get_listener_socket(PORT);
 
     if (listener == -1) {
         fprintf(stderr, "error getting listening socket\n");
@@ -199,7 +201,7 @@ void *get_in_addr(struct sockaddr *sa)
 }
 
 // Return a listening socket
-int get_listener_socket(void)
+int get_listener_socket(char *PORT)
 {
     int listener;     // Listening socket descriptor
     int yes=1;        // For setsockopt() SO_REUSEADDR, below
