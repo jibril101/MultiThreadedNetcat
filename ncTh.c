@@ -17,6 +17,7 @@
 #include <signal.h>
 #include <fcntl.h>
 #include "Thread.h"
+#include <semaphore.h>
 
 #define BUFSIZE 4096
 #define MAXCLIENT 10
@@ -39,6 +40,7 @@ void log_num(int thing);
 Client clients[11]; */
 
 int clients[MAXCLIENT];
+sem_t sem;
 
 int main(int argc, char *argv[])
 {
@@ -59,7 +61,12 @@ int main(int argc, char *argv[])
         fprintf(stderr, "usage server portnumber\n");
         exit(1);
     }
-
+    int rval;
+    if (rval = sem_init(&sem, 0, 10) == -1) {
+        perror("sem initialization");
+    }
+    printf("sem return val %d\n", rval);
+        
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
@@ -128,24 +135,26 @@ int main(int argc, char *argv[])
             }
         }
 
-        if (!limit_reached) {
-            sin_size = sizeof their_addr;
-            new_socket = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
-            clients[idx] = new_socket;
-            inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr), s, sizeof s);
-            printf("server: got connection from %s\n", s);
+        sin_size = sizeof their_addr;
+        sem_wait(&sem);
+        new_socket = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
+        clients[idx] = new_socket;
+        inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr), s, sizeof s);
+        printf("server: got connection from %s\n", s);
 
-            int *client_socket = malloc(sizeof(int));
-            *client_socket = new_socket;
-            void* thread = createThread(handle_connection, client_socket);
-            runThread(thread, NULL);
+        int *client_socket = malloc(sizeof(int));
+        *client_socket = new_socket;
+        void* thread = createThread(handle_connection, client_socket);
+        runThread(thread, NULL);
 
-            if (new_socket == -1) {
-                perror("accept failed");
-                continue;
-            }
+        if (new_socket == -1) {
+            perror("accept failed");
+            continue;
         }
+
+        printf("waiting");
     }
+
     //close connection
     close(new_socket);
     //exit server
@@ -193,6 +202,8 @@ void *handle_connection(void* arg) {
             }
         }
     }
+    printf("freeing shit");
+    sem_post(&sem);
 }
 
 // when socket connection is closed, set its value to -1 in clients array 
