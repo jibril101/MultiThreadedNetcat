@@ -29,6 +29,7 @@ void printOptions(struct commandOptions cmdOps, int argc, char **argv);
 void *handle_connection(void* arg);
 void release_socket(int fd);
 void *get_in_addr(struct sockaddr *sa);
+int no_connections_left();
 void log_num(int thing);
 
 //typedef enum {false, true} bool;
@@ -41,12 +42,19 @@ Client clients[11]; */
 
 int clients[MAXCLIENT];
 sem_t sem;
-
+int k;
+char port[12];
+struct t_args{
+    int client;
+    int k_opt;
+};
 int main(int argc, char *argv[])
 {
     //check command line options
     struct commandOptions cmdOps;
     printOptions(cmdOps, argc, argv);
+    parseOptions(argc, argv, &cmdOps);
+
     int sockfd, new_socket;  // listen on sock_fd, new connection on new_socket
     struct addrinfo hints, *servinfo, *p;
     struct sockaddr_storage their_addr; // connector's address information
@@ -57,22 +65,24 @@ int main(int argc, char *argv[])
     int rv;
     
     // Check that port is provided as an argument
-    if (argc != 2){
+    /*if (argc != 2){
         fprintf(stderr, "usage server portnumber\n");
         exit(1);
-    }
-    int rval;
-    if (rval = sem_init(&sem, 0, 10) == -1) {
+    }*/
+
+    if (sem_init(&sem, 0, 10) == -1) {
         perror("sem initialization");
     }
-    printf("sem return val %d\n", rval);
-        
+
+    k = cmdOps.option_k;
+    
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE; // use my IP
 
-    if ((rv = getaddrinfo(NULL, argv[1], &hints, &servinfo)) != 0) {
+    sprintf(port,"%d",cmdOps.port);
+    if ((rv = getaddrinfo(NULL, port, &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return 1;
     }
@@ -144,6 +154,7 @@ int main(int argc, char *argv[])
 
         int *client_socket = malloc(sizeof(int));
         *client_socket = new_socket;
+
         void* thread = createThread(handle_connection, client_socket);
         runThread(thread, NULL);
 
@@ -202,8 +213,20 @@ void *handle_connection(void* arg) {
             }
         }
     }
-    printf("freeing shit");
     sem_post(&sem);
+    if(no_connections_left() && k == 0) {
+        printf("Closing server due to no client connections\n");
+        exit(EXIT_SUCCESS);
+    }
+}
+
+int no_connections_left() {
+    for(int i =0; i < MAXCLIENT; i++ ) {
+        if(clients[i] != -1) {
+            return 0;
+        }
+    }
+    return 1;
 }
 
 // when socket connection is closed, set its value to -1 in clients array 
