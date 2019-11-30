@@ -205,13 +205,13 @@ void *handle_connection(void* arg) {
             int socket = clients[i];
             if (socket != fd && socket !=-1) {
                int rv =  send(socket, buffer, BUFSIZE,0);
-               //bzero(buffer, BUFSIZE*sizeof(char));
                if(rv == -1) {
                    clients[i] = -1;
                    perror("client: send failed");
                }
             }
         }
+        bzero(buffer, BUFSIZE*sizeof(char));
     }
     sem_post(&sem);
     if(no_connections_left() && k == 0) {
