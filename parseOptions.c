@@ -76,10 +76,10 @@ int parseOptions(int argc, char * argv[], struct commandOptions * co) {
       }
       // Things are tricker now as this must be either the hostname or port number
       // and if there are more parameters on the line then this is a bug
-    } else if (lastTwo == 1) { // hostname
+    } else if (lastTwo == 0) { // hostname
       co->hostname = argv[i];
       lastTwo++;
-    } else if (lastTwo == 0) { // port
+    } else if (lastTwo == 1) { // port
       errno = 0;
       co->port = strtoul(argv[i], NULL, 10);
       if (errno != 0) {
