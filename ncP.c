@@ -376,7 +376,8 @@ int start_client(struct commandOptions cmdOps) {
 						// connection closed
                         if (nbytes == 0) {
                             if (verbose)
-                                fprintf(stderr, "server closed the connection\n");
+                                fprintf(stderr, "--- server closed the connection ---\n");
+                                exit(1); // close client
                         } else {
                             if (verbose)
                                 fprintf(stderr, "recv error\n");
