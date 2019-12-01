@@ -31,11 +31,7 @@ int parseOptions(int argc, char * argv[], struct commandOptions * co) {
   for (i = 1; i < argc; i++) {
     // This next line is for illustraction purposes only and needs to be removed
     // once things are working 
-<<<<<<< HEAD
     // fprintf(stderr, "Arg %d is: %s\n", i, argv[i]);
-=======
-    //fprintf(stderr, "Arg %d is: %s\n", i, argv[i]);
->>>>>>> semaphore
 
     // Check for the various options
     if ((strcmp(argv[i], K_OPTION) == 0) && (!lastTwo)) {
@@ -59,11 +55,7 @@ int parseOptions(int argc, char * argv[], struct commandOptions * co) {
 	co->source_port = strtoul(argv[i], NULL, 10);
 	if (errno != 0) {
 	  return PARSE_ERROR;
-<<<<<<< HEAD
 	} else if (co->source_port < 1024 || co->source_port > 65535) {
-=======
-	} if (co->source_port > 65535 || co->source_port < 1024) {
->>>>>>> semaphore
     return PARSE_PORT_OUT_OF_RANGE; // port number must not be out of range or reserved
   } else {
 	  co->option_p = 1;
@@ -89,23 +81,14 @@ int parseOptions(int argc, char * argv[], struct commandOptions * co) {
     } else if (lastTwo == 1) { // hostname
       co->hostname = argv[i];
       lastTwo++;
-<<<<<<< HEAD
-=======
-    
->>>>>>> semaphore
     } else if (lastTwo == 0) { // port
       errno = 0;
       co->port = strtoul(argv[i], NULL, 10);
       if (errno != 0) {
-<<<<<<< HEAD
 	return PARSE_ERROR;
       } else if (co->port < 1024 || co->port > 65535) {
     return PARSE_PORT_OUT_OF_RANGE; // port number must not be out of range or reserved
   }
-=======
-	      return PARSE_ERROR;
-      }
->>>>>>> semaphore
       lastTwo++;
     
     
