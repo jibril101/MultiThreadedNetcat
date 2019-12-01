@@ -33,6 +33,7 @@ void *get_in_addr(struct sockaddr *sa);
 int no_connections_left();
 void log_num(int thing);
 int client(int p_opt, unsigned int src_port, int timeout, int log_mode, unsigned int port, char * hostname);
+void *handle_std_in(void* arg);
 
 int sockfd;
 int clients[MAXCLIENT];
@@ -48,8 +49,8 @@ int main(int argc, char *argv[])
 {
     //check command line options
     struct commandOptions cmdOps;
-    printOptions(cmdOps, argc, argv);
     parseOptions(argc, argv, &cmdOps);
+
 
     int new_socket;  // listen on sock_fd, new connection on new_socket
     struct addrinfo hints, *servinfo, *p;
@@ -61,12 +62,12 @@ int main(int argc, char *argv[])
     int rv;
     int client_limit = 1;
     log_mode = 0;
-   
 
     if(cmdOps.option_v) {
         log_mode = 1;
+        printOptions(cmdOps, argc, argv);
     }
-    
+
     if(cmdOps.option_l != 1) {
         int p_opt;
         int src_port;
@@ -75,15 +76,11 @@ int main(int argc, char *argv[])
         p_opt = cmdOps.option_p;
         src_port = cmdOps.source_port;
         timeout = cmdOps.timeout;
-        // Calling client, pass -p port -w timeout -v server port & hostname 
-        //##############MANUALY GETTING PORT AND HOSTNAME SINCE PROFS CODE IS BROKEN###########
-        printf("port %s\n", argv[2]);
-        printf("hostname %s\n", argv[1]);
+
         if(cmdOps.port == 0 || cmdOps.hostname == NULL) {
             fprintf(stderr,"ERROR:server port/server hostname not provided\n");
             exit(0);
         }
-        printf("client opening now\n");
         int retval = client(p_opt,src_port,timeout,log_mode, cmdOps.port, cmdOps.hostname);
         if(retval ==2 ) {
             exit(0);
@@ -328,12 +325,14 @@ int client(int p_opt, unsigned int src_port, int timeout, int log_mode, unsigned
 	}
     freeaddrinfo(servinfo); // all done with this structure
     //create new thread for standard input
-    /*int *std_in = malloc(sizeof(int));
+    int *std_in = malloc(sizeof(int));
     *std_in = 0;
     void* std_in_thread = createThread(handle_std_in, std_in);
-    runThread(std_in_thread, NULL);*/
-	inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr), s, sizeof s);
-	printf("client: connecting to %s\n", s);
+    runThread(std_in_thread, NULL);
+	//inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr), s, sizeof s);
+    if(log_mode) {
+        printf("client: connected to %s at port %d\n", hostname, port);
+    }
     while(1) {
 		numbytes = recv(sockfd, buf, BUFSIZE-1, 0);
 		if (numbytes == -1) {
@@ -345,4 +344,21 @@ int client(int p_opt, unsigned int src_port, int timeout, int log_mode, unsigned
     }
 
 	return 0;
+}
+
+void *handle_std_in(void* arg) {
+	char buffer[BUFSIZE];
+    int fd = *((int *)arg);
+    int ret = 0;
+	 while(1) {
+        ret = read(fd, buffer, BUFSIZE);
+        buffer[ret] = '\0';
+		if(ret == -1 ) {
+            perror("client: recv failed");
+        }
+		ret = send(sockfd, buffer, BUFSIZE,0);
+            if(ret == -1) {
+            	perror("client: send failed");
+            }
+	 }
 }

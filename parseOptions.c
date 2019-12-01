@@ -31,7 +31,7 @@ int parseOptions(int argc, char * argv[], struct commandOptions * co) {
   for (i = 1; i < argc; i++) {
     // This next line is for illustraction purposes only and needs to be removed
     // once things are working 
-    fprintf(stderr, "Arg %d is: %s\n", i, argv[i]);
+    //fprintf(stderr, "Arg %d is: %s\n", i, argv[i]);
 
     // Check for the various options
     if ((strcmp(argv[i], K_OPTION) == 0) && (!lastTwo)) {
@@ -46,53 +46,51 @@ int parseOptions(int argc, char * argv[], struct commandOptions * co) {
       // got a port match, check next argument for port number
       i++;
       if (i >= argc) {
-        // not enough arguments
-        return PARSE_ERROR;
-        } 
-      else { 
-        // extract port number
-        // See man page for strtoul() as to why
-        // we check for errors by examining errno
-        errno = 0;
-        co->source_port = strtoul(argv[i], NULL, 10);
-        if (errno != 0) {
-          return PARSE_ERROR;
-        } 
-        if (co->source_port > 65535 || co->source_port < 1024) {
-          return PARSE_PORT_OUT_OF_RANGE; // port number must not be out of range or reserved
-        } else {
-          co->option_p = 1;
-        }
+	// not enough arguments
+	return PARSE_ERROR;
+      } else { // extract port number
+	// See man page for strtoul() as to why
+	// we check for errors by examining errno
+	errno = 0;
+	co->source_port = strtoul(argv[i], NULL, 10);
+	if (errno != 0) {
+	  return PARSE_ERROR;
+	} if (co->source_port > 65535 || co->source_port < 1024) {
+    return PARSE_PORT_OUT_OF_RANGE; // port number must not be out of range or reserved
+  } else {
+	  co->option_p = 1;
+	}
       }
-    } 
-    else if ((strcmp(argv[i], W_OPTION) == 0) && (!lastTwo)) {
+    } else if ((strcmp(argv[i], W_OPTION) == 0) && (!lastTwo)) {
       // got a W match, check next argument for timeout value
       i++;
       if (i >= argc) {
-	      // not enough arguments
-	      return PARSE_ERROR;
+	// not enough arguments
+	return PARSE_ERROR;
       } else { // extract timeout value
-	        // See man page for strtoul() as to why
-	        // we check for errors by examining errno, see err
-          errno = 0;
-          co->timeout = strtoul(argv[i], NULL, 10);
-          if (errno != 0) {
-            return PARSE_ERROR;
-          }
+	// See man page for strtoul() as to why
+	// we check for errors by examining errno, see err
+	errno = 0;
+	co->timeout = strtoul(argv[i], NULL, 10);
+	if (errno != 0) {
+	  return PARSE_ERROR;
+	}
       }
       // Things are tricker now as this must be either the hostname or port number
       // and if there are more parameters on the line then this is a bug
-    } 
-    else if (lastTwo == 0) { // hostname
+    } else if (lastTwo == 1) { // hostname
       co->hostname = argv[i];
       lastTwo++;
-    } else if (lastTwo == 1) { // port
+    
+    } else if (lastTwo == 0) { // port
       errno = 0;
       co->port = strtoul(argv[i], NULL, 10);
       if (errno != 0) {
-	return PARSE_ERROR;
+	      return PARSE_ERROR;
       }
       lastTwo++;
+    
+    
     } else { // TOO many parameters
       return PARSE_TOOMANY_ARGS;
     }
