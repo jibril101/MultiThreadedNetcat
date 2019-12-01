@@ -44,7 +44,9 @@ int main(int argc, char **argv) {
  	    printOptions(argc, argv, cmdOps);
     }
 
-	 if (cmdOps.option_k && cmdOps.option_l == 0) {
+    if (cmdOps.option_l && cmdOps.port == 0) {
+        fprintf(stderr, "error: provide port\n");
+    } else if (cmdOps.option_k && cmdOps.option_l == 0) {
 		 fprintf(stderr, "error: cannot use -k without -l option\n");
          return 0;
 	 } else if (cmdOps.option_r && cmdOps.option_l) {
@@ -60,9 +62,11 @@ int main(int argc, char **argv) {
      } else if ((cmdOps.option_l && cmdOps.timeout) || cmdOps.option_l) {
          // run server with 1 connection allowed, ignoring timeout -w option, close server after connection closed
          start_server(cmdOps, 1);
+     } else if (cmdOps.option_r && cmdOps.option_l == 0) {
+         fprintf(stderr, "error: cannot use -r without -l option\n");
      }
 
-     printOptions(argc, argv, cmdOps);
+     //printOptions(argc, argv, cmdOps);
 
 	 if (cmdOps.hostname != NULL) {
 		 start_client(cmdOps);
@@ -202,6 +206,7 @@ int get_connector_socket(struct commandOptions cmdOps) {
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
+    
 
 
 
@@ -211,6 +216,8 @@ int get_connector_socket(struct commandOptions cmdOps) {
         return 1;
     }
 
+    //((struct sockaddr_in *)servinfo->ai_addr)->sin_port = htons(cmdOps.source_port);
+
     // loop through all the results and connect to the first we can
     for(p = servinfo; p != NULL; p = p->ai_next) {
         if ((sockfd = socket(p->ai_family, p->ai_socktype,
@@ -219,6 +226,17 @@ int get_connector_socket(struct commandOptions cmdOps) {
                         fprintf(stderr, "client: socket\n");
             continue;
         }
+
+        if (cmdOps.option_p) {
+        // assign specified port
+        struct sockaddr_in address;
+        address.sin_family = AF_INET;
+        address.sin_addr.s_addr = INADDR_ANY;
+        address.sin_port = htons(cmdOps.source_port);
+        
+        bind(sockfd,(struct sockaddr *)&address,sizeof(address));
+        }
+
 
         if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
             close(sockfd);
@@ -255,6 +273,7 @@ int start_client(struct commandOptions cmdOps) {
 
 	int sockfd;
 	int stdin_fd = 0;
+    int client_source_port = cmdOps.source_port;
 
 	char recv_buf[256];	// buffer for received data from server
 	bzero(recv_buf, sizeof recv_buf);	// flush buffer
@@ -298,7 +317,8 @@ int start_client(struct commandOptions cmdOps) {
     int timeout_ms = -1;
     if (cmdOps.timeout != 0) {
             timeout_ms = cmdOps.timeout;
-            fprintf(stderr, "Timeout: %d\n", timeout_ms);
+            if (verbose)
+                fprintf(stderr, "Timeout: %d\n", timeout_ms);
         }
 
 	// main loop
@@ -400,7 +420,10 @@ int start_server(struct commandOptions cmdOps, int num_cons) {
   	int listener;     // listening socket descriptor
 
 	int newfd;        // newly accept()ed socket descriptor
+    int clientfd;
     struct sockaddr_storage remoteaddr; // client address
+
+
     socklen_t addrlen;
 
     char recv_buf[256];    // Buffer for client data
@@ -464,12 +487,12 @@ int start_server(struct commandOptions cmdOps, int num_cons) {
             if (pfds[i].revents & POLLIN) { // We got one!!
 				
 
+
                 if (pfds[i].fd == listener) {
                     // If listener is ready to read, handle new connection
 
                     addrlen = sizeof remoteaddr;
-					// TODO: show port number of client, can use the client code (save port as global variable maybe)
-					// int client_port = get_in_port((struct sockaddr*)&remoteaddr);	// get the port from the struct
+
                     newfd = accept(listener,
                         (struct sockaddr *)&remoteaddr,
                         &addrlen);
@@ -483,11 +506,12 @@ int start_server(struct commandOptions cmdOps, int num_cons) {
                         
                         if (verbose) {
 						fprintf(stderr, "accepted connection\n");
-
-                        fprintf(stderr, "new connection from %s on "
+                        //getsockname(newfd, (struct sockaddr *) &clientaddr, &clientaddrlen);
+                        fprintf(stderr, "new connection from %s from "
                             "socket %d\n",
                             inet_ntop(remoteaddr.ss_family, get_in_addr((struct sockaddr*)&remoteaddr), remoteIP, INET_ADDRSTRLEN), newfd);
                         }
+                        //fprintf(stderr, "port %u\n", ntohs(remoteaddr.sin_port));
                     }
 
                     
