@@ -18,6 +18,7 @@
 #include <fcntl.h>
 #include "Thread.h"
 #include <semaphore.h>
+#include "ncThClient.h"
 
 #define BUFSIZE 4096
 #define MAXCLIENT 10
@@ -31,18 +32,13 @@ void release_socket(int fd);
 void *get_in_addr(struct sockaddr *sa);
 int no_connections_left();
 void log_num(int thing);
+int client(int p_opt, unsigned int src_port, int timeout, int log_mode, unsigned int port, char * hostname);
 
-//typedef enum {false, true} bool;
-// struct to keep track of client's file descriptors
-/*typedef struct client_fd {
-  int fd;
-  bool in_use;
-} Client; 
-Client clients[11]; */
-
+int sockfd;
 int clients[MAXCLIENT];
 sem_t sem;
 int k;
+int log_mode;
 char port[12];
 struct t_args{
     int client;
@@ -55,7 +51,7 @@ int main(int argc, char *argv[])
     printOptions(cmdOps, argc, argv);
     parseOptions(argc, argv, &cmdOps);
 
-    int sockfd, new_socket;  // listen on sock_fd, new connection on new_socket
+    int new_socket;  // listen on sock_fd, new connection on new_socket
     struct addrinfo hints, *servinfo, *p;
     struct sockaddr_storage their_addr; // connector's address information
     socklen_t sin_size;
@@ -63,18 +59,46 @@ int main(int argc, char *argv[])
     int yes=1;
     char s[INET6_ADDRSTRLEN];
     int rv;
-    
-    // Check that port is provided as an argument
-    /*if (argc != 2){
-        fprintf(stderr, "usage server portnumber\n");
-        exit(1);
-    }*/
+    int client_limit = 1;
+    log_mode = 0;
+   
 
-    if (sem_init(&sem, 0, 10) == -1) {
-        perror("sem initialization");
+    if(cmdOps.option_v) {
+        log_mode = 1;
+    }
+    
+    if(cmdOps.option_l != 1) {
+        int p_opt;
+        int src_port;
+        int w; 
+        int timeout;
+        p_opt = cmdOps.option_p;
+        src_port = cmdOps.source_port;
+        timeout = cmdOps.timeout;
+        // Calling client, pass -p port -w timeout -v server port & hostname 
+        //##############MANUALY GETTING PORT AND HOSTNAME SINCE PROFS CODE IS BROKEN###########
+        printf("port %s\n", argv[2]);
+        printf("hostname %s\n", argv[1]);
+        if(cmdOps.port == 0 || cmdOps.hostname == NULL) {
+            fprintf(stderr,"ERROR:server port/server hostname not provided\n");
+            exit(0);
+        }
+        printf("client opening now\n");
+        int retval = client(p_opt,src_port,timeout,log_mode, cmdOps.port, cmdOps.hostname);
+        if(retval ==2 ) {
+            exit(0);
+        }
     }
 
     k = cmdOps.option_k;
+
+    if(cmdOps.option_r) {
+        client_limit = 10;
+    }
+
+    if (sem_init(&sem, 0, client_limit) == -1) {
+        perror("sem initialization\n");
+    }
     
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;
@@ -121,7 +145,7 @@ int main(int argc, char *argv[])
         perror("listen");
         exit(1);
     }
-    printf("server: waiting for connections...\n");
+    fprintf(stderr,"server: waiting for connections...\n");
      //set all sockets to -1 
     for(int i =0; i < MAXCLIENT; i++ ){
         clients[i] = -1;
@@ -150,7 +174,7 @@ int main(int argc, char *argv[])
         new_socket = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
         clients[idx] = new_socket;
         inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr), s, sizeof s);
-        printf("server: got connection from %s\n", s);
+        fprintf(stderr, "server: got connection from %s\n", s);
 
         int *client_socket = malloc(sizeof(int));
         *client_socket = new_socket;
@@ -162,19 +186,11 @@ int main(int argc, char *argv[])
             perror("accept failed");
             continue;
         }
-
-        printf("waiting");
     }
-
-    //close connection
-    close(new_socket);
-    //exit server
-    exit(0);
-
   return 0;
 }
 
-// handle the client and stand input connection
+// handle the client and standard input connection
 void *handle_connection(void* arg) {
     char buffer[BUFSIZE];
     int fd = *((int *)arg);
@@ -215,7 +231,10 @@ void *handle_connection(void* arg) {
     }
     sem_post(&sem);
     if(no_connections_left() && k == 0) {
-        printf("Closing server due to no client connections\n");
+        if(log_mode) {
+            printf("Closing server, Last client exited\n");
+        }
+        close(sockfd);
         exit(EXIT_SUCCESS);
     }
 }
@@ -228,26 +247,25 @@ int no_connections_left() {
     }
     return 1;
 }
-
 // when socket connection is closed, set its value to -1 in clients array 
 void release_socket(int fd) {
     for(int i = 0; i < MAXCLIENT; i++) {
         if(clients[i] == fd) {
-            printf("releasing socket %d\n", fd);
+            if(log_mode) {
+                printf("releasing socket %d\n", fd);
+            }
             clients[i] = -1;
             break;
         }
     }
 }
 
-// get sockaddr, IPv4 
-void *get_in_addr(struct sockaddr *sa)
-{
-return &(((struct sockaddr_in*)sa)->sin_addr);
-}
-
 void log_num(int thing) {
     printf("%d\n",thing);
+}
+void *get_in_addr(struct sockaddr *sa)
+{
+	return &(((struct sockaddr_in*)sa)->sin_addr);
 }
 
 void printOptions(struct commandOptions cmdOps, int argc, char **argv) {
@@ -264,4 +282,67 @@ void printOptions(struct commandOptions cmdOps, int argc, char **argv) {
   printf("Timeout value = %d\n", cmdOps.timeout);
   printf("Host to connect to = %s\n", cmdOps.hostname);
   printf("Port to connect to = %d\n", cmdOps.port);  
+}
+
+//#################################CLIENT SIDE#################################
+
+char server_port[12];
+int sockfd;
+int client(int p_opt, unsigned int src_port, int timeout, int log_mode, unsigned int port, char * hostname)
+{
+	int numbytes;  
+	char buf[BUFSIZE];
+	struct addrinfo hints, *servinfo, *p;
+	int rv;
+	char s[INET6_ADDRSTRLEN];
+
+	memset(&hints, 0, sizeof hints);
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	sprintf(server_port,"%d", port);
+	if ((rv = getaddrinfo(hostname, server_port, &hints, &servinfo)) != 0) {
+		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+		return 1;
+	}
+
+	// loop through all the results and connect to the first we can
+	for(p = servinfo; p != NULL; p = p->ai_next) {
+		if ((sockfd = socket(p->ai_family, p->ai_socktype,
+				p->ai_protocol)) == -1) {
+			perror("client: socket");
+			continue;
+		}
+
+		if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+			perror("client: connect");
+			close(sockfd);
+			continue;
+		}
+
+		break;
+	}
+
+	if (p == NULL) {
+		fprintf(stderr, "client: failed to connect\n");
+		return 2;
+	}
+    freeaddrinfo(servinfo); // all done with this structure
+    //create new thread for standard input
+    /*int *std_in = malloc(sizeof(int));
+    *std_in = 0;
+    void* std_in_thread = createThread(handle_std_in, std_in);
+    runThread(std_in_thread, NULL);*/
+	inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr), s, sizeof s);
+	printf("client: connecting to %s\n", s);
+    while(1) {
+		numbytes = recv(sockfd, buf, BUFSIZE-1, 0);
+		if (numbytes == -1) {
+	    perror("recv");
+	    exit(1);
+		}
+		fprintf(stdout,buf);
+		buf[numbytes] = '\0';
+    }
+
+	return 0;
 }
