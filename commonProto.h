@@ -2,6 +2,7 @@
 #define COMMONPROTO
 #define RESERVED_PORT 1023
 
+
 struct commandOptions {
   int option_k;   // indicates if -k was provided.
   int option_l;   // indicates if -l provided
@@ -35,4 +36,6 @@ struct commandOptions {
 
 int parseOptions(int argc, char * argv[], struct commandOptions * co);
 void usage(char *);
+
+
 #endif

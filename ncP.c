@@ -32,7 +32,11 @@ int start_client(struct commandOptions cmdOps);
 
 
 
+// function declarations
+void printOptions(struct commandOptions cmdOps, int argc, char **argv);
+
 int main(int argc, char **argv) {
+<<<<<<< HEAD
 
   	struct commandOptions cmdOps;
 
@@ -589,3 +593,28 @@ int start_server(struct commandOptions cmdOps, int num_cons) {
         } // END looping through file descriptors
     } // END for(;;)--and you thought it would never end!
 }
+=======
+	struct commandOptions cmdOps;
+
+	printOptions(cmdOps, argc, argv);
+  
+  
+}
+
+void printOptions(struct commandOptions cmdOps, int argc, char **argv) {
+
+  int retVal = parseOptions(argc, argv, &cmdOps);
+  printf("Command parse outcome %d\n", retVal);
+
+  printf("-k = %d\n", cmdOps.option_k);
+  printf("-l = %d\n", cmdOps.option_l);
+  printf("-v = %d\n", cmdOps.option_v);
+  printf("-r = %d\n", cmdOps.option_r);
+  printf("-p = %d\n", cmdOps.option_p);
+  printf("-p port = %d\n", cmdOps.source_port);
+  printf("Timeout value = %d\n", cmdOps.timeout);
+  printf("Host to connect to = %s\n", cmdOps.hostname);
+  printf("Port to connect to = %d\n", cmdOps.port);  
+}
+
+>>>>>>> semaphore
