@@ -23,15 +23,12 @@
 #define BUFSIZE 4096
 #define MAXCLIENT 10
 
-//#define BACKLOG 1 // queue of pending connections
-
 // function declarations
 void printOptions(struct commandOptions cmdOps, int argc, char **argv);
 void *handle_connection(void* arg);
 void release_socket(int fd);
 void *get_in_addr(struct sockaddr *sa);
 int no_connections_left();
-void log_num(int thing);
 int client(int p_opt, unsigned int src_port, int timeout, int log_mode, unsigned int port, char * hostname);
 void *handle_std_in(void* arg);
 
@@ -41,10 +38,7 @@ sem_t sem;
 int k;
 int log_mode;
 char port[12];
-struct t_args{
-    int client;
-    int k_opt;
-};
+
 int main(int argc, char *argv[])
 {
     //check command line options
@@ -217,7 +211,7 @@ void *handle_connection(void* arg) {
         for(int i = 0 ; i < MAXCLIENT;i++) {
             int socket = clients[i];
             if (socket != fd && socket !=-1) {
-               int rv =  send(socket, buffer, BUFSIZE,0);
+               rv =  send(socket, buffer, BUFSIZE, 0);
                if(rv == -1) {
                    clients[i] = -1;
                    perror("client: send failed");
@@ -257,9 +251,6 @@ void release_socket(int fd) {
     }
 }
 
-void log_num(int thing) {
-    printf("%d\n",thing);
-}
 void *get_in_addr(struct sockaddr *sa)
 {
 	return &(((struct sockaddr_in*)sa)->sin_addr);
