@@ -77,7 +77,6 @@ int main(int argc, char **argv) {
          fprintf(stderr, "error: cannot use -r without -l option\n");
      }
 
-     //printOptions(argc, argv, cmdOps);
 
 	 if (cmdOps.hostname != NULL) {
 		 start_client(cmdOps);
