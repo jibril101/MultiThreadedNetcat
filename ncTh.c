@@ -18,7 +18,6 @@
 #include <fcntl.h>
 #include "Thread.h"
 #include <semaphore.h>
-#include "ncThClient.h"
 
 #define BUFSIZE 4096
 #define MAXCLIENT 10
@@ -31,6 +30,8 @@ void *get_in_addr(struct sockaddr *sa);
 int no_connections_left();
 int client(int p_opt, unsigned int src_port, int timeout, int log_mode, unsigned int port, char * hostname);
 void *handle_std_in(void* arg);
+void set_socket(struct addrinfo **p, struct addrinfo *servinfo, const int *yes);
+void std_in_thread(); 
 
 int sockfd;
 int clients[MAXCLIENT];
@@ -103,27 +104,7 @@ int main(int argc, char *argv[])
     }
 
     // loop through all the results and bind to the first we can
-    for(p = servinfo; p != NULL; p = p->ai_next) {
-        if ((sockfd = socket(p->ai_family, p->ai_socktype,
-                p->ai_protocol)) == -1) {
-            perror("server: socket");
-            continue;
-        }
-
-        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,
-                sizeof(int)) == -1) {
-            perror("setsockopt");
-            exit(1);
-        }
-
-        if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-            close(sockfd);
-            perror("server: bind");
-            continue;
-        }
-
-        break;
-    }
+    set_socket(&p, servinfo, &yes);
 
     freeaddrinfo(servinfo); // all done with this structure
 
@@ -143,10 +124,7 @@ int main(int argc, char *argv[])
     }
 
     // create new thread for standard input
-    int *std_in = malloc(sizeof(int));
-    *std_in = 0;
-    void* std_in_thread = createThread(handle_connection, std_in);
-    runThread(std_in_thread, NULL);
+    std_in_thread();
 
     while(1) {  // main accept() loop
         int limit_reached = 1;
@@ -256,6 +234,35 @@ void *get_in_addr(struct sockaddr *sa)
 	return &(((struct sockaddr_in*)sa)->sin_addr);
 }
 
+void std_in_thread() {
+    int *std_in = malloc(sizeof(int));
+    *std_in = 0;
+    void* std_in_thread = createThread(handle_connection, std_in);
+    runThread(std_in_thread, NULL);
+}
+void set_socket(struct addrinfo **p, struct addrinfo *servinfo, const int *yes) {
+    for(*p = servinfo; *p != NULL; *p = (*p)->ai_next) {
+        if ((sockfd = socket((*p)->ai_family, (*p)->ai_socktype,
+                             (*p)->ai_protocol)) == -1) {
+            perror("server: socket");
+            continue;
+        }
+        
+        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, yes,
+                       sizeof(int)) == -1) {
+            perror("setsockopt");
+            exit(1);
+        }
+        
+        if (bind(sockfd, (*p)->ai_addr, (*p)->ai_addrlen) == -1) {
+            close(sockfd);
+            perror("server: bind");
+            continue;
+        }
+        
+        break;
+    }
+}
 void printOptions(struct commandOptions cmdOps, int argc, char **argv) {
 
   int retVal = parseOptions(argc, argv, &cmdOps);
