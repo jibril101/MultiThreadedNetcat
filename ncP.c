@@ -28,7 +28,6 @@ int get_listener_socket(char *PORT);
 int add_to_pfds(struct pollfd *pfds[], int newfd, int *fd_count, int *fd_size);
 void del_from_pfds(struct pollfd pfds[], int i, int *fd_count);
 int start_server(struct commandOptions cmdOps, int num_cons);
-void *get_in_port(struct sockaddr *sa);
 int start_client(struct commandOptions cmdOps);
 
 
@@ -114,14 +113,6 @@ void *get_in_addr(struct sockaddr *sa)
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-// Get port
-void *get_in_port(struct sockaddr *sa)
-{
-    if (sa->sa_family == AF_INET) {
-        return &(((struct sockaddr_in*)sa)->sin_port);
-    }
-	return &(((struct sockaddr_in6*)sa)->sin6_port);
-}
 
 // Return a listening socket
 int get_listener_socket(char *PORT)
