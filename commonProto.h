@@ -24,6 +24,7 @@ struct commandOptions {
 #define PARSE_OK 0
 #define PARSE_ERROR -1
 #define PARSE_TOOMANY_ARGS -2;
+#define PARSE_PORT_OUT_OF_RANGE -3;
 
 #define K_OPTION "-k"
 #define L_OPTION "-l"

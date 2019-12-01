@@ -31,7 +31,7 @@ int parseOptions(int argc, char * argv[], struct commandOptions * co) {
   for (i = 1; i < argc; i++) {
     // This next line is for illustraction purposes only and needs to be removed
     // once things are working 
-    fprintf(stderr, "Arg %d is: %s\n", i, argv[i]);
+    // fprintf(stderr, "Arg %d is: %s\n", i, argv[i]);
 
     // Check for the various options
     if ((strcmp(argv[i], K_OPTION) == 0) && (!lastTwo)) {
@@ -55,7 +55,9 @@ int parseOptions(int argc, char * argv[], struct commandOptions * co) {
 	co->source_port = strtoul(argv[i], NULL, 10);
 	if (errno != 0) {
 	  return PARSE_ERROR;
-	} else {
+	} else if (co->source_port < 1024 || co->source_port > 65535) {
+    return PARSE_PORT_OUT_OF_RANGE; // port number must not be out of range or reserved
+  } else {
 	  co->option_p = 1;
 	}
       }
@@ -84,7 +86,9 @@ int parseOptions(int argc, char * argv[], struct commandOptions * co) {
       co->port = strtoul(argv[i], NULL, 10);
       if (errno != 0) {
 	return PARSE_ERROR;
-      }
+      } else if (co->port < 1024 || co->port > 65535) {
+    return PARSE_PORT_OUT_OF_RANGE; // port number must not be out of range or reserved
+  }
       lastTwo++;
     } else { // TOO many parameters
       return PARSE_TOOMANY_ARGS;

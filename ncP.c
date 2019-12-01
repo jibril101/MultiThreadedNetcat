@@ -36,7 +36,18 @@ int start_client(struct commandOptions cmdOps);
 int main(int argc, char **argv) {
 
   	struct commandOptions cmdOps;
-	parseOptions(argc, argv, &cmdOps);
+
+      // parse the arguments
+	if (parseOptions(argc, argv, &cmdOps) == -1) {
+        fprintf(stderr, "parse error\n");
+        return 0;
+    } else if (parseOptions(argc, argv, &cmdOps) == -2) {
+        fprintf(stderr, "parse error: too many argumnets\n");
+        return 0;
+    } else if (parseOptions(argc, argv, &cmdOps) == -3) {
+        fprintf(stderr, "parse error: port out of range\n");
+        return 0;
+    }
     
     // print verbose output
     if (cmdOps.option_v) {
