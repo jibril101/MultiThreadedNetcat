@@ -37,7 +37,7 @@ int main(int argc, char **argv) {
 
   	struct commandOptions cmdOps;
 	parseOptions(argc, argv, &cmdOps);
-
+    
     // print verbose output
     if (cmdOps.option_v) {
         verbose = 1;
@@ -61,6 +61,8 @@ int main(int argc, char **argv) {
          // run server with 1 connection allowed, ignoring timeout -w option, close server after connection closed
          start_server(cmdOps, 1);
      }
+
+     printOptions(argc, argv, cmdOps);
 
 	 if (cmdOps.hostname != NULL) {
 		 start_client(cmdOps);
@@ -214,13 +216,14 @@ int get_connector_socket(struct commandOptions cmdOps) {
         if ((sockfd = socket(p->ai_family, p->ai_socktype,
                 p->ai_protocol)) == -1) {
                     if (verbose)
-                        perror("client: socket");
+                        fprintf(stderr, "client: socket\n");
             continue;
         }
 
         if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
             close(sockfd);
-            perror("client: connect");
+            if (verbose)
+                fprintf(stderr, "client: connect\n");
             continue;
         }
 
@@ -228,13 +231,15 @@ int get_connector_socket(struct commandOptions cmdOps) {
     }
 
     if (p == NULL) {
-        fprintf(stderr, "client: failed to connect\n");
+        if (verbose)
+            fprintf(stderr, "client: failed to connect\n");
         return 2;
     }
 
     inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
             s, sizeof s);
-    printf("client: connecting to %s\n", s);
+            if (verbose)
+                fprintf(stderr, "client: connecting to %s\n", s);
 
     freeaddrinfo(servinfo);
 
@@ -243,6 +248,10 @@ int get_connector_socket(struct commandOptions cmdOps) {
 
 // Starts the client
 int start_client(struct commandOptions cmdOps) {
+
+    if (verbose) {
+        fprintf(stderr, "--- starting client ---\n");
+    }
 
 	int sockfd;
 	int stdin_fd = 0;
@@ -260,14 +269,20 @@ int start_client(struct commandOptions cmdOps) {
 	sockfd = get_connector_socket(cmdOps);
 
 	if (sockfd == -1) {
-		fprintf(stderr, "error getting connection socket\n");
+        if (verbose)
+		    fprintf(stderr, "error getting connection socket\n");
 		exit(1);
 	}
 
     // client failed to connect to server (server may not be running)
     if (sockfd == 2) {
+        if (verbose)
+            fprintf(stderr, "error count not connect to server\n");
         exit(1);
     }
+
+    if (verbose)
+        fprintf(stderr, "connected to server\n");
 
 	// add the sock fd to the fd array
 	pfds[0].fd = sockfd;
@@ -279,22 +294,33 @@ int start_client(struct commandOptions cmdOps) {
 
 	fd_count = 2;
 
+    
+    int timeout_ms = -1;
+    if (cmdOps.timeout != 0) {
+            timeout_ms = cmdOps.timeout;
+            fprintf(stderr, "Timeout: %d\n", timeout_ms);
+        }
+
 	// main loop
     for(;;) {
-        int poll_count = poll(pfds, fd_count, -1);	// TODO: add timeout
+
+        int poll_count = poll(pfds, fd_count, timeout_ms);
 
         if (poll_count == -1) {
-            perror("poll");
+            if (verbose)
+                fprintf(stderr, "poll count = -1\n");
             exit(1);
         }
 
+        
+
         // loop through existing connections looking for data to read
         for(int i = 0; i < fd_count; i++) {
+
             // fd is ready to read
             if (pfds[i].revents & POLLIN) {
 				
 				if (pfds[i].fd == stdin_fd) {
-                    // create new buffer and flush it
                     int sender_fd = pfds[i].fd;
                     int bytes_read = read(sender_fd, send_buf, sizeof send_buf);	// read input from terminal
 					
@@ -305,7 +331,8 @@ int start_client(struct commandOptions cmdOps) {
                         // don't send to sockfd and stdin sockets
                         if (dest_fd != sender_fd && dest_fd != stdin_fd) {
                             if (send(dest_fd, send_buf, bytes_read, 0) == -1) {
-                                fprintf(stderr, "send error: data not sent from client");
+                                if (verbose)
+                                    fprintf(stderr, "send error: data not sent from client\n");
                             }
                         }
                     }
@@ -318,9 +345,11 @@ int start_client(struct commandOptions cmdOps) {
                     if (nbytes <= 0) {
 						// connection closed
                         if (nbytes == 0) {
-                            fprintf(stderr, "server closed the connection\n");
+                            if (verbose)
+                                fprintf(stderr, "server closed the connection\n");
                         } else {
-                            fprintf(stderr, "recv error");
+                            if (verbose)
+                                fprintf(stderr, "recv error\n");
                         }
                         close(pfds[i].fd); // close the connection
                         del_from_pfds(pfds, i, &fd_count); // remove socket fd from fd array
@@ -332,7 +361,8 @@ int start_client(struct commandOptions cmdOps) {
                             // don't send to sockfd and stdin sockets
                             if (dest_fd != receive_fd && dest_fd != stdin_fd) {
                                 if (send(dest_fd, recv_buf, nbytes, 0) == -1) {
-                                    fprintf(stderr, "send error: data not received from server");
+                                    if (verbose)
+                                        fprintf(stderr, "send error: data not received from server\n");
                                 }
                             }
                         }
@@ -341,6 +371,17 @@ int start_client(struct commandOptions cmdOps) {
                     }
                 } // END handle data from client
             } // END got ready-to-read from poll()
+
+            // timeout client if no input detected within set time
+            if (poll_count == 0) {
+                if (verbose) {
+                    fprintf(stderr, "--- client timed out ---\n");
+                    fprintf(stderr, "--- closing connection ---\n");
+                }
+                close(pfds[i].fd); // close the connection
+                del_from_pfds(pfds, i, &fd_count); // remove socket fd from fd array
+                exit(1); // exit program
+            }
         } // END looping through file descriptors
     } // END for(;;)--and you thought it would never end!
 }
@@ -348,16 +389,23 @@ int start_client(struct commandOptions cmdOps) {
 // Starts the server
 int start_server(struct commandOptions cmdOps, int num_cons) {
     sprintf(PORT, "%d", cmdOps.port);	// convert int to char[]
-	//printf("PORT: %s\n", PORT);
 
-  	int listener;     // Listening socket descriptor
+    verbose = cmdOps.option_v;
+	
+    if (verbose) {
+        fprintf(stderr, "starting server on ");
+        fprintf(stderr, "PORT: %s\n", PORT);
+    }
 
-	int newfd;        // Newly accept()ed socket descriptor
-    struct sockaddr_storage remoteaddr; // Client address
+  	int listener;     // listening socket descriptor
+
+	int newfd;        // newly accept()ed socket descriptor
+    struct sockaddr_storage remoteaddr; // client address
     socklen_t addrlen;
 
-    char buf[256];    // Buffer for client data
-	bzero(buf, sizeof buf); // flush the buffer
+    char recv_buf[256];    // Buffer for client data
+	bzero(recv_buf, sizeof recv_buf); // flush the buffer
+
     char send_buf[256]; // Buffer for server data
 	bzero(send_buf, sizeof send_buf); // flush the buffer
 
@@ -372,38 +420,40 @@ int start_server(struct commandOptions cmdOps, int num_cons) {
     int fd_size = listener_con + num_cons;
     struct pollfd *pfds = malloc(sizeof *pfds * fd_size);
 
-    // Set up and get a listening socket
+    // aet up and get a listening socket
     listener = get_listener_socket(PORT);
 
     if (listener == -1) {
-        fprintf(stderr, "error getting listening socket\n");
+        if (verbose)
+            fprintf(stderr, "error getting listening socket\n");
         exit(1);
     }
 
-    // Add the listener to set
+    // add the listener to set
     pfds[0].fd = listener;
-    pfds[0].events = POLLIN; // Report ready to read on incoming connection
+    pfds[0].events = POLLIN; // report ready to read on incoming connection
 
-    //fd_count = 1; // For the listener
+    int stdin_fd = 0;
 
-    pfds[1].fd = 0; // stdin
+    // add stdin to set
+    pfds[1].fd = stdin_fd;
     pfds[1].events = POLLIN;
 
     fd_count = 2;
 
     int initial_fd_count = 2;
 
-	fprintf(stderr, "--- waiting for connection ---\n");
-
-    printf("fdcount %d\n", fd_count);
-    printf("num_con %d\n", fd_size);
+    if (verbose) {
+	    fprintf(stderr, "--- waiting for connection ---\n");
+    }
 
     // Main loop
     for(;;) {
         int poll_count = poll(pfds, fd_count, -1);	// timeout feature at -1
 
         if (poll_count == -1) {
-            perror("poll");
+            if (verbose)
+                fprintf(stderr, "poll count = -1\n");
             exit(1);
         }
 
@@ -425,47 +475,43 @@ int start_server(struct commandOptions cmdOps, int num_cons) {
                         &addrlen);
 
                     if (newfd == -1) {
-                        perror("accept");
+                        if (verbose)
+                            fprintf(stderr, "count not accept connection\n");
                     } else if (add_to_pfds(&pfds, newfd, &fd_count, &fd_size) == -1) { 
                         // don't add new connection fd if reached num_cons limit
 					} else {
                         
+                        if (verbose) {
 						fprintf(stderr, "accepted connection\n");
 
-                        printf("new connection from %s on "
+                        fprintf(stderr, "new connection from %s on "
                             "socket %d\n",
                             inet_ntop(remoteaddr.ss_family, get_in_addr((struct sockaddr*)&remoteaddr), remoteIP, INET_ADDRSTRLEN), newfd);
+                        }
                     }
 
-                    printf("fdcount %d\n", fd_count);
-                    printf("num_con %d\n", fd_size);
-                } else if (pfds[i].fd == 0) { // stdin
-                    // printf("inside stdin send to clients\n");
                     
-                    // create new buffer and flush it
+                } else if (pfds[i].fd == stdin_fd) {
+                    
                     int sender_fd = pfds[i].fd;
                     int bytes_read = read(sender_fd, send_buf, sizeof send_buf);
-					
-                    
-                    
-					// TODO: What if bytes_Read <= 0? See code below
 
-                    // create for loop to go through all the clients and send it to them except for listener and stdin
+                    // loop to go through all the clients and send it to them except for listener and stdin
                     for (int i = 0; i < fd_count; i++) {
                         int dest_fd = pfds[i].fd;
 
-                        // Don't send to sockets that are listener and ourselves
-                        if (dest_fd != listener && dest_fd != sender_fd && dest_fd != 0) {
+                        // don't send to sockets that are listener and ourselves and stdin
+                        if (dest_fd != listener && dest_fd != sender_fd && dest_fd != stdin_fd) {
                             if (send(dest_fd, send_buf, bytes_read, 0) == -1) {
-                                    perror("send");
+                                if (verbose)
+                                    fprintf(stderr, "send error\n");
                                 }
                         }
                     }
-					// bzero(send_buf, sizeof send_buf); // flush the buffer
 
                 } else {
-                    // If not the listener, we're just a regular client
-                    int nbytes = recv(pfds[i].fd, buf, sizeof buf, 0);
+                    // if not the listener, we're just a regular client
+                    int nbytes = recv(pfds[i].fd, recv_buf, sizeof recv_buf, 0);
 
                     int sender_fd = pfds[i].fd;
 
@@ -473,43 +519,44 @@ int start_server(struct commandOptions cmdOps, int num_cons) {
                         // Got error or connection closed by client
                         if (nbytes == 0) {
                             // client closed the connection
-                            fprintf(stderr, "--- client closed the connection ---\n");
+                            if (verbose)
+                                fprintf(stderr, "--- client closed the connection ---\n");
                         } else {
-                            perror("recv");
+                            if (verbose)
+                                fprintf(stderr, "recv error\n");
                         }
 
-                        close(pfds[i].fd); // Bye!
+                        close(pfds[i].fd); // close the current connected client fd
 
                         del_from_pfds(pfds, i, &fd_count);
 
-                        // TODO: close server here!!!
-                        printf("fdcount %d\n", fd_count);
-                        printf("num_con %d\n", fd_size);
+                        // closing server
                         if (cmdOps.option_k == 0 && fd_count <= initial_fd_count) {
-                            fprintf(stderr, "--- closing server ---\n");
+                            if (verbose)
+                                fprintf(stderr, "--- closing server ---\n");
                             exit(1);
                         } else {
-                            fprintf(stderr, "--- waiting for connection ---\n");
+                            if (verbose)
+                                fprintf(stderr, "--- waiting for connection ---\n");
                         }
 
                     } else {
                         // We got some good data from a client
-                        // printf("inside good data from client\n");
-
                         for(int j = 0; j < fd_count; j++) {
                             // Send to everyone!
                             int dest_fd = pfds[j].fd;
 
-                            // Don't send to sockets that are listener, ourselves, and stdin
-                            if (dest_fd != listener && dest_fd != sender_fd && dest_fd != 0) {
-                                if (send(dest_fd, buf, nbytes, 0) == -1) {
-                                    perror("send error:");
+                            // don't send to sockets that are listener, ourselves, and stdin
+                            if (dest_fd != listener && dest_fd != sender_fd && dest_fd != stdin_fd) {
+                                if (send(dest_fd, recv_buf, nbytes, 0) == -1) {
+                                    if (verbose)
+                                        fprintf(stderr, "send error:\n");
                                 }
                             }
 
                         }
-                        printf("%s", buf);
-                        bzero(buf, sizeof buf); // flush the buffer
+                        printf("%s", recv_buf);
+                        bzero(recv_buf, sizeof recv_buf); // flush the buffer
                     }
                 } // END handle data from client
             } // END got ready-to-read from poll()
