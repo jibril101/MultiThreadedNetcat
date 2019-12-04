@@ -1,0 +1,183 @@
+Total before late penalty: [/57]
+
+NOTE: in the marking report something left blank (e.g.  [ /6]) typically means
+that you got full marks for that item. 
+
+
+[/13] Generic Functionality and error handling
+   [/1] Programs properly compile using a makefile
+   [/2] Can handle short writes to both sockets and standard output
+   [/2] Can read, transmit and write ASCII data from standard input or a socket to standard output or a socket(s) as appropriate
+   [/2] Can read and properly transmit and write binary data from standard input or a socket to standard output and/or sockets
+   [/2] Implementation of -v	
+
+[/9] Client functionality using threads:
+   [/2] Connects to server on specified port
+   [/1] -p option uses the provided port to connect from
+   [/4] Can interleave I/O, doesn't have to take turns, nor does it echo back to 
+        the device that was read.  
+   [/2] Properly handles -w to timeout client
+
+
+[/9] Client functionality using poll 
+   [/2] Connects to server on specified port
+   [/1] -p option uses the provided port to connect from 
+   [/4] Can interleave I/O, doesn't have to take turns , nor does it echo back to 
+        the device that was read.      
+   [/2] Properly handles -w to timeout client
+
+
+[/8] Server functionality using threads
+   [/1] -l alone accepts a connection and exits when client disconnects
+   [/1] -k continually accepts a new connection after the existing one closes   
+   [/1] -r without -k exits when last client exits
+   [/1] -r with -k keeps accepting connections when client count goes to 0
+   [/2] -r interleaves I/O and re-sends to all attached clients except
+   the source  
+   [/2] Handles 10 clients properly and closes sockets/file descriptors appropriately
+
+[/8] Server functionality using poll 
+   [/1] -l alone accepts a connection and exits when client disconnects
+   [/1] -k continually accepts a new connection after the existing one closes	   
+   [/1] -r without -k exits when last client exits
+   [/1] -r with -k keeps accepting connections when client count goes to 0
+   [/2] -r interleaves I/O and re-sends to all attached clients except
+   the source  
+   [/2] Handles 10 clients properly and closes sockets/file descriptors appropriately
+
+[/14]Broad Marking Criteria  
+See below for a detailed description of
+this marking criteria
+     Readability        [/3]
+     Code Documentation [/3]
+     Code Quality       [/3]
+     Marker's discretion[/5]
+
+MARKER'S ADDITIONAL COMMENTS:
+Readability
+
+It is important that your code is readable not only when you write it
+but at some later time. It also needs to be readable by a
+knowledgeable third (i.e. a TA, someone else in the classe :-). In
+essence a knowlegeable third party would be somone capable of reading
+the code and be broadly familiar with a typical solution approach but
+might not be familiar with the subtle nuances of the algorithm you
+have developed/used and how it manifests itself in the code. To make
+your code readable it is important to consider the following sorts of
+things:
+
+    Make sure to use indention in a consistent fashion. In particular
+    make sure that you don't use tabs as just how they are displayed
+    depends upon a lot of things. You might have your tabs set to be 2
+    spaces while someone else might have it set at 8 spaces or vary
+    across the line and those differences will affect readability.
+
+    Keeps lines to a reasonable link. Many display devices are
+    optimized for looking at code that has no more than 80 characters
+    on a line.
+    
+    Use white space (blank lines, spaces) to separate distinct blocks
+    of code. Certainly you want blank lines (and some other stuff)
+    between functions and within blocks of code in a function that
+    perform a related task.  
+
+    Make sure that your variables have meaningful names that suggest
+    the type of information the variable holds and is purpose. The
+    only exception (sometimes) is if the variable is loop index.  
+
+    Make sure that functions/methods also have meaningful names and
+    are organized in a meaningful way. Code used multiple times is to
+    be encapsulated into functions.
+
+Mark assignment criteria:
+
+       3 marks - Code is "clean", understandable and well organized,
+        with no issues.  
+       2 marks - There may be minor issues with
+        consistency of identation and use of white space. variable
+        naming or general organization. Although annoying, this does
+        not have a major impact on readability.  
+       1 mark - There are major issues with indentation, whitespece,
+        variable naming 0 marks - There are major problems across
+        multiple categories with respect to readability  
+
+Documenting your code
+
+Every file provided to you that you need to add substantial content
+to, or any file containing code that you add to the git project is to
+start with a comment describing the purpose of this code from a high
+level perspective. (If the file was not substantially empty then add
+this comments at the point where you started adding your code.)  This
+comment is to contain:
+
+   A list of all the functions/methods that are to be called from
+   outside this file. (i.e. functions/methods used only within this
+   file are not included.) For each of these functions/methods provide
+   a brief description of the function's purpose and what it returns,
+   and, if appropriate, how to interpret any values that might be
+   returned. For example you might indicate that it returns the count
+   of the number of elements in an array or a negative value if an
+   error was encountered.
+
+   The code itself needs to be well commented, but care needs to be
+   taken to avoid over commenting and affecting readability. The
+   purpose of comments is to assist the reader in understanding what
+   the code is supposed to do and **how** it goes about doing it. To
+   achieve this make sure that there is a comment before each function
+   explaining the purpose of the function, what it expects as inputs
+   and produces as outputs. Within the code you should have comments
+   explaining the purpose of lines of related code.
+
+   Any unusual or complex algorithms or strategies for solving a
+   problem also need to be documented in the code. In some cases
+   these comments can go before the declaration of the function
+   whereas in other cases the comment belongs with the relevant
+   section of code. To help decide where the comment belongs evaluate
+   the comment with respect to its purpose. If it is a general
+   description of what you are doing and how then put it before the
+   function or maybe even at the start of the file. If it is more
+   related to the code then put it with the code. There need to be
+   sufficient comments so that one doesn't have to read the code in
+   detail to determine what the code is supposed to be doing. 
+
+Mark assignment criteria:
+
+     3 marks  - Code is well and completely commented    
+
+     2 marks - One or two places could benefit from some additional
+               comments to add clarity to what is being done.
+     
+     1 mark - Multiple locations where sections of code are
+              uncommented or comments aren't helpful 
+
+      0 marks - Few or no helpful comments
+
+Code Quality
+
+    There are often many poor or inefficient ways to write a program
+to solve a problem and typically only a few good or reasonable ways. A
+good way needs to balance efficiency across the dimensions of memory
+usage to hold the code and/or data, the amount of CPU time used by the
+program, and maintainability. In class (or tutorials) we will often
+discuss certain ways of doing something and why. If you deviate from
+these in any significant way it is important to justify these changes.
+Mark assignment criteria:
+
+     3 marks  - Uniformity good choices of algorithms and data
+                structures across all aspects of the solution
+
+     2 marks - Good choice of algorithms or data structures except
+               for 1 or 2 situations where some improvement is possible
+
+     1 mark - Poor algorithms or data structure choice in multiple
+              situations and major improvement is possible.
+
+     0 marks - Consistently poor algorithm and data structure choices.
+
+
+
+
+
+
+
+
