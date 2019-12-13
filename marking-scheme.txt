@@ -1,0 +1,23 @@
+Total before late penalty: [50/57]
+You can check file commandline_outputs.txt for the full output from the auto tests.
+You can also refer to rubric at Canvas for more details.
+
+Automatically graded points: 34 / 41
+
+Criteria || Pts || Comments 
+server functionality using poll || 8 / 8 || The new internet. 
+server functionality using threads || 8 / 8 || Solid code.
+generic functionality || 5 / 7 || These are NOT handled corretly:  Can read & transmit binary data, -2 pts, 
+client functionality using poll || 7 / 9 || These are NOT handled correctly: Properly handles -w to timeout, -2 pts, 
+client functionality using threads || 6 / 9 || These are NOT handled correctly: Properly handles -w to timeout, -2 pts, -p option uses the provided 
+port, -1 pts, 
+
+
+This part is graded manually: 16 / 16
+
+Criteria || Pts || Comments
+other || 5 / 5 || 
+documentation || 3 / 3 || 
+quality || 3 / 3 || 
+handles short writes || 2 / 2 || 
+readability || 3 / 3 || 
